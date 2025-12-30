@@ -750,11 +750,13 @@
                 </div>
 
                 <div class="info-box">
-                    <strong>IIM-TE-384.1 Countermeasure Thresholds:</strong><br><br>
-                    <strong>PHB (Pedestrian Hybrid Beacon):</strong> 3+ lanes, AADT &gt; 9,000; strongly recommended for speeds ≥40 mph<br>
-                    <strong>RRFB (Rectangular Rapid Flashing Beacon):</strong> 2+ lanes, AADT &gt; 1,500, speeds ≤45 mph; requires AIDs<br>
+                    <strong>IIM-TE-384.1 / FHWA Countermeasure Thresholds:</strong><br><br>
+                    <strong>PHB (Pedestrian Hybrid Beacon):</strong> Required when 3+ lanes <u>AND</u> AADT &gt; 9,000; also strongly recommended for speeds ≥40 mph<br>
+                    <strong>RRFB (Rectangular Rapid Flashing Beacon):</strong> 2+ lanes, AADT &gt; 1,500, speeds ≤45 mph; requires AIDs (Audible Information Devices)<br>
                     <strong>Pedestrian Refuge Island (Two-Stage Crossing):</strong> 4+ lanes, OR speed ≥35 mph, OR AADT &gt; 9,000<br>
-                    <strong>High-Visibility Crosswalk:</strong> Required for speed &gt;35 mph OR AADT &gt; 15,000
+                    <strong>Raised Crosswalk:</strong> 2-3 lanes, speed ≤30 mph, AADT &lt; 9,000<br>
+                    <strong>High-Visibility Crosswalk:</strong> Required for speed ≥40 mph OR multilane with AADT &gt; 10,000<br>
+                    <strong>⚠️ FHWA Warning:</strong> Marked crosswalk alone is NOT sufficient for multilane roads with AADT &gt; 10,000
                 </div>
 
                 <div class="grid-2">
@@ -800,10 +802,11 @@
                 </div>
 
                 <div class="info-box">
-                    <strong>IIM-TE-384.1 High-Visibility Crosswalk Criteria:</strong><br>
-                    High-visibility crosswalks are required at uncontrolled crossings with:<br>
-                    • Speed limits &gt; 35 mph, OR<br>
-                    • Traffic volumes &gt; 15,000 vehicles per day
+                    <strong>IIM-TE-384.1 / FHWA High-Visibility Crosswalk Criteria:</strong><br>
+                    High-visibility crosswalks are REQUIRED at uncontrolled crossings with:<br>
+                    • Speed limits ≥40 mph, OR<br>
+                    • Multilane roads (3+ lanes) with AADT &gt; 10,000<br><br>
+                    <strong>⚠️ FHWA Warning:</strong> For multilane roads with AADT &gt; 10,000, a marked crosswalk alone is NOT sufficient - additional countermeasures (PHB, RRFB, refuge island) are required.
                 </div>
 
                 <div class="form-group">
@@ -1050,72 +1053,117 @@
             document.getElementById('step4Section').style.display = 'block';
         }
 
-        // Tier determination logic based on IIM-TE-384.1 tables
+        // Tier determination logic based on IIM-TE-384.1 and FHWA Guide tables
         function getTierAndCountermeasures(config, adt, speed) {
-            // IIM-TE-384.1 Criteria:
-            // - PHB: 3+ lanes, AADT > 9,000, strongly recommended for speeds ≥40 mph
+            // IIM-TE-384.1 / FHWA Criteria:
+            // - PHB: 3+ lanes AND AADT > 9,000 (both required); strongly recommended for speeds ≥40 mph
             // - RRFB: 2+ lanes, AADT > 1,500, speeds ≤45 mph
-            // - Two-Stage Crossings (RI): 4+ lanes, speed ≥35 mph, OR AADT > 9,000
+            // - Two-Stage Crossings (RI): 4+ lanes, OR speed ≥35 mph, OR AADT > 9,000
+            // - Raised Crosswalk: 2-3 lanes, speed ≤30 mph, AADT < 9,000
+            // - Multilane with AADT > 10,000: marked crosswalk alone is NOT sufficient
 
             // Determine lane count from configuration
             let laneCount = getLaneCount(config);
             let hasDividedMedian = config.includes('divided') || config.includes('median');
+            let isMultilane = laneCount >= 3;
 
             // Parse ADT value
             let adtValue = getADTValue(adt);
 
-            // Determine tier based on configuration, ADT, and speed
+            // Determine tier based on FHWA matrix approach
             let tier = 1;
             let countermeasures = [];
             let description = '';
 
-            // Tier 1: Low risk - 2 lanes or less, low speed, low volume
-            // Tier 2: Moderate risk - needs enhanced treatments
-            // Tier 3: Higher risk - requires active warning devices
-            // Tier 4: Highest risk - requires PHB or signal review
+            // TIER DETERMINATION based on FHWA Guide matrix
+            // Tier 1: Low risk - 1-2 lanes, ≤30 mph, AADT ≤9,000
+            // Tier 2: Moderate risk - 2 lanes with higher speed/volume, or 3 lanes with lower conditions
+            // Tier 3: Higher risk - multilane OR higher speeds OR higher volumes
+            // Tier 4: Highest risk - multilane with high speed AND/OR high volume
 
-            // Base tier on lane configuration and speed
-            if (laneCount <= 2 && speed <= 30 && adtValue <= 9000) {
-                tier = 1;
-            } else if (laneCount <= 2 && speed <= 35 && adtValue <= 12000) {
-                tier = 2;
-            } else if (laneCount >= 3 || speed >= 40 || adtValue > 12000) {
-                tier = 3;
-            }
-
-            // Upgrade to Tier 4 for highest risk conditions
-            if ((laneCount >= 4 && speed >= 40) ||
-                (adtValue > 15000 && speed >= 40) ||
-                (laneCount >= 6 && adtValue > 9000)) {
-                tier = 4;
+            if (laneCount <= 2) {
+                // 1-2 lane roads
+                if (speed <= 30 && adtValue <= 9000) {
+                    tier = 1;
+                } else if (speed <= 35 && adtValue <= 12000) {
+                    tier = 2;
+                } else if (speed <= 35 && adtValue <= 15000) {
+                    tier = 3;
+                } else {
+                    // 2 lanes with speed > 35 OR AADT > 15,000
+                    tier = 3;
+                    if (speed >= 40 && adtValue > 12000) tier = 4;
+                }
+            } else if (laneCount === 3) {
+                // 3 lane roads
+                if (speed <= 30 && adtValue <= 9000) {
+                    tier = 2;
+                } else if (speed <= 35 && adtValue <= 12000) {
+                    tier = 3;
+                } else {
+                    tier = 4;
+                }
+            } else {
+                // 4+ lane roads - generally higher risk
+                if (speed <= 30 && adtValue <= 9000 && hasDividedMedian) {
+                    tier = 2;
+                } else if (speed <= 35 && adtValue <= 12000 && hasDividedMedian) {
+                    tier = 3;
+                } else {
+                    tier = 4;
+                }
             }
 
             // Determine countermeasures based on IIM-TE-384.1 guidelines
 
-            // High-visibility crosswalk required for all tiers at unsignalized locations
-            countermeasures.push('High-visibility crosswalk markings');
+            // High-visibility crosswalk - required for uncontrolled crossings with speed ≥40 mph OR AADT > 10,000 on multilane
+            if (speed >= 40 || (isMultilane && adtValue > 10000)) {
+                countermeasures.push('High-visibility crosswalk markings (REQUIRED)');
+            } else {
+                countermeasures.push('High-visibility crosswalk markings (recommended)');
+            }
             countermeasures.push('W11-2, S1-1, or W11-15 signage');
 
-            // Visibility Enhancements (VE) - all tiers
-            if (speed > 35 || adtValue > 15000) {
+            // Raised Crosswalk: 2-3 lanes, speed ≤30 mph, AADT < 9,000
+            if (laneCount <= 3 && speed <= 30 && adtValue < 9000) {
+                countermeasures.push('Raised Crosswalk - candidate treatment for low-speed locations');
+            }
+
+            // Visibility Enhancements (VE) - for higher speed/volume
+            if (speed >= 35 || adtValue > 10000) {
                 countermeasures.push('Visibility Enhancements (VE) - advance yield lines, signage');
             }
 
             // RRFB criteria: 2+ lanes, AADT > 1,500, speeds ≤45 mph
             if (laneCount >= 2 && adtValue > 1500 && speed <= 45) {
-                countermeasures.push('RRFB (Rectangular Rapid Flashing Beacon) with AIDs');
+                countermeasures.push('RRFB (Rectangular Rapid Flashing Beacon) with AIDs - required');
             }
 
-            // Two-Stage Crossing / Refuge Island (RI): 4+ lanes, speed ≥35 mph, OR AADT > 9,000
+            // Two-Stage Crossing / Refuge Island (RI): 4+ lanes, OR speed ≥35 mph, OR AADT > 9,000
             if (laneCount >= 4 || speed >= 35 || adtValue > 9000) {
                 if (!hasDividedMedian) {
                     countermeasures.push('RI (Pedestrian Refuge Island) - for two-stage crossing');
+                } else {
+                    countermeasures.push('Existing median provides two-stage crossing capability');
                 }
             }
 
-            // PHB criteria: 3+ lanes, AADT > 9,000, strongly recommended for speeds ≥40 mph
-            if ((laneCount >= 3 && adtValue > 9000) || speed >= 40) {
-                countermeasures.push('PHB (Pedestrian Hybrid Beacon) - strongly recommended');
+            // PHB criteria: 3+ lanes AND AADT > 9,000 (BOTH conditions must be met)
+            // Also strongly recommended for ANY crossing where speed ≥40 mph
+            let phbRecommended = false;
+            let phbReason = [];
+
+            if (laneCount >= 3 && adtValue > 9000) {
+                phbRecommended = true;
+                phbReason.push('3+ lanes with AADT > 9,000');
+            }
+            if (speed >= 40) {
+                phbRecommended = true;
+                phbReason.push('speed ≥40 mph');
+            }
+
+            if (phbRecommended) {
+                countermeasures.push(`PHB (Pedestrian Hybrid Beacon) - strongly recommended (${phbReason.join('; ')})`);
             }
 
             // Roadway Reconfiguration for multi-lane undivided roads
@@ -1128,35 +1176,40 @@
                 countermeasures.push('TC (Traffic Calming) - speed management measures');
             }
 
+            // Warning for multilane with high AADT
+            if (isMultilane && adtValue > 10000) {
+                countermeasures.push('⚠️ FHWA: Marked crosswalk alone is NOT sufficient for multilane roads with AADT > 10,000');
+            }
+
             // Build description based on tier
             if (tier === 1) {
                 description = '<p><strong>Tier 1 - Lower Risk Location</strong></p>' +
                     '<p><strong>Required:</strong> High-visibility crosswalk with pedestrian warning signage (W11-2, S1-1, or W11-15)</p>' +
                     '<p><strong>Recommended:</strong> Visibility Enhancements (VE), advance yield markings</p>' +
-                    '<p><strong>Optional:</strong> Traffic Calming Measures (TC)</p>';
+                    '<p><strong>Optional:</strong> Raised crosswalk (if speed ≤30 mph and AADT < 9,000), Traffic Calming (TC)</p>';
             } else if (tier === 2) {
                 description = '<p><strong>Tier 2 - Moderate Risk Location</strong></p>' +
                     '<p><strong>Required:</strong> High-visibility crosswalk with pedestrian warning signage</p>' +
                     '<p><strong>Recommended:</strong></p><ul>' +
-                    '<li>RRFB (Rectangular Rapid Flashing Beacon) with Audible Information Devices (AIDs)</li>' +
-                    '<li>Pedestrian Refuge Island (RI) if 4+ lanes or AADT > 9,000</li></ul>' +
-                    '<p><strong>Note:</strong> RRFB applicable for speeds ≤45 mph and AADT > 1,500</p>';
+                    '<li>RRFB (Rectangular Rapid Flashing Beacon) with Audible Information Devices (AIDs) - for AADT > 1,500 and speed ≤45 mph</li>' +
+                    '<li>Pedestrian Refuge Island (RI) if 4+ lanes OR speed ≥35 mph OR AADT > 9,000</li></ul>' +
+                    '<p><strong>Note:</strong> Enhanced countermeasures improve driver yielding compliance.</p>';
             } else if (tier === 3) {
                 description = '<p><strong>Tier 3 - Higher Risk Location</strong></p>' +
-                    '<p><strong>Required:</strong> High-visibility crosswalk with pedestrian warning signage AND one or more of:</p><ul>' +
-                    '<li>PHB (Pedestrian Hybrid Beacon) - for 3+ lanes with AADT > 9,000</li>' +
-                    '<li>RRFB with AIDs - for speeds ≤45 mph</li>' +
+                    '<p><strong>Required:</strong> High-visibility crosswalk with pedestrian warning signage AND one or more active countermeasures:</p><ul>' +
+                    '<li>PHB (Pedestrian Hybrid Beacon) - required if 3+ lanes AND AADT > 9,000</li>' +
+                    '<li>RRFB with AIDs - if speed ≤45 mph and AADT > 1,500</li>' +
                     '<li>Pedestrian Refuge Island (RI) - for two-stage crossing</li>' +
-                    '<li>Roadway Reconfiguration (RD)</li></ul>' +
+                    '<li>Roadway Reconfiguration (RD) - consider road diet for undivided multilane</li></ul>' +
                     '<p><strong>Note:</strong> Engineering study required to determine final countermeasures.</p>';
             } else {
                 description = '<p><strong>Tier 4 - Highest Risk Location</strong></p>' +
                     '<p><strong>Required:</strong> High-visibility crosswalk with pedestrian warning signage AND:</p><ul>' +
-                    '<li>PHB (Pedestrian Hybrid Beacon) - strongly recommended for speeds ≥40 mph</li>' +
-                    '<li>Consider full traffic signal review</li>' +
-                    '<li>Pedestrian Refuge Island (RI) if not already divided</li>' +
+                    '<li>PHB (Pedestrian Hybrid Beacon) - strongly recommended for speeds ≥40 mph or 3+ lanes with AADT > 9,000</li>' +
+                    '<li>Consider full traffic signal warrant analysis</li>' +
+                    '<li>Pedestrian Refuge Island (RI) if roadway is not already divided</li>' +
                     '<li>Roadway Reconfiguration (RD) may be necessary</li></ul>' +
-                    '<p><strong>Critical:</strong> Engineering study required. PHB strongly recommended for all crossings where speed ≥40 mph.</p>';
+                    '<p><strong>Critical:</strong> Engineering study required. FHWA guidance: marked crosswalk alone is NOT sufficient for multilane roads with AADT > 10,000.</p>';
             }
 
             return {
@@ -1168,7 +1221,8 @@
 
         // Helper function to get lane count from configuration
         function getLaneCount(config) {
-            if (config.includes('single') || config.includes('2lane')) return 2;
+            if (config.includes('single')) return 1;
+            if (config.includes('2lane')) return 2;
             if (config.includes('3lane')) return 3;
             if (config.includes('4lane')) return 4;
             if (config.includes('5lane')) return 5;
